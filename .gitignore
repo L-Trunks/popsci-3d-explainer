@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# 片子运行时产物（new_film.py 起的片子目录不该放进仓库）
+work/
+成品/
+*.log
+*.wav
+*.mp3
+*.mp4
+!docs/**/*.mp4
+
+# 本机配置：config.example.json 进仓库，config.json 不进
+config.json
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

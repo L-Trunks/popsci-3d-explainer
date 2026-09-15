@@ -1,0 +1,8 @@
+# 仓库内一律 LF；PowerShell 脚本保持 CRLF（文件本身带 UTF-8 BOM，给 Windows PowerShell 5.1 用）
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.mp4 binary

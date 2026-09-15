@@ -1,0 +1,75 @@
+{
+  "title": "我的第一支片",
+  "outdir": "成品",
+  "script_md": "稿.md",
+  "fps": 30,
+  "canvas": [1920, 1080],
+
+  "shot_files": ["bl_shots.py"],
+
+  "blender": "C:/Program Files/Blender Foundation/Blender 4.5/blender.exe",
+  "py_audio": "",
+  "py_build": "",
+  "whisper_model": "large-v3",
+  "whisper_device": "cuda",
+
+  "trash": "",
+  "disk": { "drive": "C:\\", "min_gb": 40 },
+
+  "fonts": {
+    "ui": "C:/Windows/Fonts/msyhbd.ttc",
+    "mono": "C:/Windows/Fonts/consola.ttf",
+    "sub_file": "C:/Windows/Fonts/STKAITI.TTF",
+    "sub_name": "STKaiti",
+    "sub_size": 60
+  },
+
+  "tts": {
+    "backend": "edge",
+    "voice": "zh-CN-YunxiNeural",
+    "rate": "+8%",
+    "tempo": 1.0,
+
+    "_voxcpm 用法": "backend 改成 voxcpm，再填下面四项；tempo 给 1.15",
+    "python": "",
+    "script": "",
+    "model": "",
+    "ref": ""
+  },
+
+  "audio": {
+    "seg_lufs": -16.5,
+    "target_lufs": -11.5,
+    "limit": 0.88,
+    "bgm_v": 0.34,
+    "bgm_hp": 100,
+    "notch": []
+  },
+
+  "bgm": {
+    "_说明": "有曲库就填 lib+subs 让 bgm.py scan 去扫；没有就把几首曲子的绝对路径写进 files。",
+    "lib": "",
+    "subs": [""],
+    "files": [],
+    "pick": []
+  },
+
+  "watermark": "",
+  "speech_rate": 323,
+  "terms": ["把这期的阻塞性名词写在这儿", "lint 会告诉你它第一次出现在哪一段"],
+
+  "cover": {
+    "slug": "TOPIC · 2026",
+    "sign": "",
+    "ep": "EP.01",
+    "badge": "计算机原理 · 拆开讲",
+    "title": ["主标题上行", "下行用强调色"],
+    "sub": ["副标题第一行", "副标题第二行"],
+    "stats": [["30", "GB/s", "数字一"], ["405", "GB/s", "数字二"], ["8000", "GB/s", "数字三"]]
+  },
+
+  "samples": [
+    { "name": "样片_开场", "head": 45 },
+    { "name": "样片_结尾", "seg": "LAST" }
+  ]
+}

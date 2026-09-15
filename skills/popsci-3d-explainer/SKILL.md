@@ -1,0 +1,165 @@
+---
+name: popsci-3d-explainer
+description: 做 10–25 分钟的横版 3D 科普长片（Blender headless 建模 + 本人音色/免费 TTS 配音 + 逐字对齐 + 拍点驱动渲染 + 章节结构件 + 三层格子验收）。适用于「拆开讲原理」这类需要剖切动画的题材：硬件、半导体、机械、物理机制。用户说「做一支长科普片 / 3D 讲解片 / 剖切动画讲原理 / 建模讲原理 / 拍点驱动 / 格子法验收」时用它。不适用于竖版快剪和实拍空镜蒙太奇。
+---
+
+# 3D 讲解长片生产线
+
+一条已经跑通两部成片的管线：**口播定稿 → 出声 → 逐字对齐 → 按每个字的时刻渲染 3D → 结构件 → 混音 → 逐格验收**。
+
+和竖版实拍空镜快剪（footage-first）是**两条不同的线**，别混：
+
+| | 本 skill | 竖版空镜快剪 |
+|---|---|---|
+| 画面 | Blender 全自建模剖切，零外部素材 | 实拍空镜 b-roll 为主 |
+| 片长 | 10–25 分钟横版 | 45 秒–3 分钟竖版 |
+| 时间轴 | **配音的逐字时间戳** | 分镜估的段时长 |
+| 适合 | 「里面是怎么动的」——有机制可剖 | 「这事儿是怎么回事」——有画面可配 |
+
+---
+
+## ⛔ 一条铁律：先声音，后画面
+
+**时间轴由配音决定，不是由分镜估出来的。**
+先出配音 → whisper 逐字对齐 → 每个画面块拿到真实起止秒 → 动画关键帧打在**关键词说出的那一帧**上。
+反过来做（先渲画面再配音）出来的东西一定对不上口播，而且没有任何一步会报错。
+
+推论（每一条都栽过）：
+- **定稿后不要改词。** 改一个字 → 那段要重配 → 全量重对齐 → whisper 的逐字时间会有 1~16 帧抖动 → **帧数对不上的镜头全部要重渲**。
+- 要补内容，**用插入式新增**（加新段，不动旧段），旧段的 wav / 对齐 / 帧 / 章全部原样有效。见 `reference/08-改稿与插入式新增.md`。
+- 改音色的活，**能放进最后一次混音的就别放进素材层**——动素材层就是上面那条连锁。
+
+---
+
+## 起手式
+
+```bash
+python <本 skill>/new_film.py path/to/我的新片 "片名"
+cd path/to/我的新片
+# 改 config.json：blender 路径 / tts 后端 / 字体（少这三样跑不起来）
+python config.py            # 打印一遍，确认路径都对
+```
+
+引擎是**拷进片子目录**的，不是共享引用——每部片都会按题材改零件库和镜头，共享必然互相踩。
+
+---
+
+## 十一步（每一步都有产物和闸门）
+
+| # | 做什么 | 命令 | 产物 | 闸门 |
+|---|---|---|---|---|
+| 1 | 写口播 + 分镜 | 手写 `scenes.py` | SCENES | 一段 150~620 字；一块 ≤16 字一条字幕 |
+| 2 | 反生成稿 | `python gen_gao.py` | `稿.md` | — |
+| 3 | 稿格子 + lint | `python grid_script.py` / `--lint` | `work/grid_script.json` | 逐段盖章；AI 味 / 气口 / 术语首现 |
+| 4 | 分镜闸门 | `python check_scenes.py` | — | **CHECK_OK**：稿 ≡ 分镜逐字、素材零复用 |
+| 5 | 出 storyboard | `python make.py storyboard` | `work/film/storyboard.json` | ⛔ 改稿后**第一件事**就是这个 |
+| 6 | 配音 | `python chain.py tts` | `work/film/tts/*.wav` | wav 数 == 段数 |
+| 7 | 音频链 | `python chain.py audio` | `align.json` `beats.json` | 对齐验收 + `pauses.py check` + `check_dup.py` |
+| 8 | 写镜头 | 手写 `bl_shots.py` | 镜头函数 | `python check_beats_kw.py` → **KW_OK** |
+| 9 | 渲染 | `python chain.py render` | `work/blender/S*/f_*.png` | 磁盘 ≥40 GB；日志 grep `LABEL_` |
+| 10 | 总装 | `python bgm.py scan` → `python bgm.py mix <秒数>` → `python chain.py post` | `成品/<片名>_成片.mp4` | BGM 混音总长 > 成片；含封面（`bl_cover.py` 换题材要重写）|
+| 11 | 验收 | `python grid.py` + `python verify.py` | `验收.json` | 三层格子全满 + **VERIFY_OK** |
+
+只改字幕 / BGM 音量、画面没动时：`python final_pass.py final`（≈1 分钟）或 `remix`（≈15 秒），**不用重跑 9、10**。
+
+---
+
+## 四条纪律
+
+**① 每镜一个主角，且只有主角发光。**
+主角占画面高 ≥1/3（1080p ≥360 px，大字 ≥144 px）；配角 ≤4、标签 ≤6、配角不发光。
+两部对照片的实测：动效数量和节奏一样，差距全在「主角多大、谁发光」——
+最大物体中位 172 px vs 219 px、小于 110 px 持续占比 29% vs 12%、光效词 0 处 vs 31 处。
+
+**② 取景、布光、曝光、字色，四件一律「渲一张小图量出来」。**
+场景尺度从 13 到 400 差三十倍、相机又被自动取景退到任意远，手写常数在下一镜必然失准
+（第一版全片抽 125 帧实测平均亮度中位只有 0.088，亮于中灰的像素只占 2.9%）。
+`bs.go()` 一条龙做完四件。细节和坑见 `reference/03-建模与镜头.md`。
+
+**③ 节奏靠拍点，不靠切换。**
+每句至少一处可察觉变化；一句没有新元素就用一次 30~45 帧推近；每章 ≥3 次运镜、每镜 ≤1 次。
+纯展示块 3~8 秒，机制段一镜到底 8~25 秒——**概念解释段必须给长镜，快切等于打断观众跟线索**。
+
+**④ 结构件常驻。**
+片头封面、章节卡（≤6 字，章首 1.6 秒）、顶部 HUD（章 › 小节）、底部**按秒推进**的章节进度条。
+长片没有这四件，观众不知道自己看到哪儿了。
+
+---
+
+## ⛔⛔ 这条线上所有会「静默失败」的地方
+
+> 这些全都**不报错**，只是结果是错的。每一条都真发生过。完整版在 `reference/07-坑册.md`。
+
+| 症状 | 真正原因 |
+|---|---|
+| 动画和口播错开 | `B.f("词")` 的词不在这块口播里 → 静默退回默认帧。跑 `check_beats_kw.py` |
+| 某段一处停顿都没插 | 落点串对应的句子被改了/段被拆了 → `plan()` 只打印一行警告。跑 `pauses.py plan` 逐行看 |
+| 某一镜画面停在旧拍点 | `chain.render` 默认「帧数够就跳过」，段变短时旧帧数更大 → 整段被跳过。判据必须是**恰好相等** |
+| 格子盖了假章 | `shot_files` 漏登一个镜头文件 → 改了那里的镜头、帧数没变，旧章还生效 |
+| 字幕整段错位 | 只改了读音侧（`{{长\|涨}}`）时显示串一个字没动，但 wav 变了。align 的 stale 判据要**同时**比显示串、读音串和时长 |
+| 片尾十几秒死寂 | `amix` 的 `duration=first` = 第一路输入（人声），人声一停整条音轨就断。要 `longest` |
+| 成片比混音长、片尾放的是开场曲 | `-stream_loop -1` 绕回开头。BGM 混音总长必须 > 成片总长 |
+| 验收全绿但验的是旧片 | 没加 mtime 闸门。`verify.py` 第 ① 条就是这个 |
+| 渲染 4 秒 FAIL 且无 traceback | 多进程抢同一个 `%TEMP%` 探针文件。临时文件名要带 PID |
+| 量到的是上一部片的镜头 | `import bl_shots` 撞了同名文件。一律 `shotload.py` 按绝对路径加载 |
+| 盘满了但计数不涨 | blender 每帧报 `No space left`，看计数以为只是渲得慢。开渲前 `C.assert_disk()` |
+| TTS 整段复读而回读检查报 OK | 按拼音比只报 ≤3 音节的 replace，几十音节的重复是 insert。另跑 `check_dup.py` |
+
+---
+
+## 文件地图（片子目录）
+
+```
+片名/
+├── config.json          ← 机器相关 + 片子相关，全片唯一的配置入口
+├── scenes.py            ← 口播 + 分镜（单一事实源）
+├── chapters.py          ← 章节表（进度条 / HUD / 章节卡共用）
+├── pauses_table.py      ← 停顿落点表
+├── bl_shots.py          ← 镜头函数（多了就拆文件，并登进 config.shot_files）
+├── bl_scene.py          ← 上半＝通用框架（取景/布光/曝光/字色），下半＝题材零件库
+├── bl_lib.py            ← bpy 薄封装 + 拍点类 Beats
+├── 稿.md / 数据出处.md   ← 稿由 gen_gao 反生成；每个数字的算法或链接手写在出处表
+├── work/film/           ← tts_raw · tts · align.json · beats.json · storyboard.json · subs.ass · bgm_mix
+├── work/blender/        ← 每镜的帧序列 + done.txt + seg 切片
+└── 成品/                ← 成片 · 封面 · 样片
+```
+
+---
+
+## 只有我这里有的东西，换成你有的
+
+| 东西 | 默认（免费） | 想更好 |
+|---|---|---|
+| 配音 | **edge-tts**（`pip install edge-tts`，`tts.voice` 选音色） | VoxCPM2 本地克隆自己的声音：`tts.backend="voxcpm"` + 模型和参考音（**三个静默坑见 `tts_voxcpm.py` 文件头**） |
+| BGM | `bgm.files` 直接写几首的路径（CC0：YouTube Audio Library / Pixabay Music / FMA） | 有曲库就填 `bgm.lib` + `bgm.subs`，`bgm.py scan` 自动打分挑 |
+| 逐字对齐 | faster-whisper `large-v3`（首次自动下载） | 指到本地模型目录 |
+| 字体 | 系统自带 msyhbd / STKaiti / consola | `fonts.display` 给标题换展示字体 |
+| Blender | 自动找常见安装路径 | `blender` 字段写全路径 |
+
+全部字段见 `reference/00-配置与依赖.md`。
+
+---
+
+## reference（按环节读，别一次全读）
+
+| 文件 | 什么时候读 |
+|---|---|
+| `00-配置与依赖.md` | 起手、换机器、装环境 |
+| `01-文案与分镜.md` | 写 scenes.py、稿格子、AI 味 lint、数据出处 |
+| `02-配音与对齐.md` | 配音、插停顿、逐字对齐、出拍点、回读检查 |
+| `03-建模与镜头.md` | 写镜头、取景/布光/曝光/字色、标签排版、并行渲染 |
+| `04-字幕与结构件.md` | 断句规则、章节卡 / HUD / 进度条 / 水印、封面 |
+| `05-混音与BGM.md` | 选曲、混音链、响度和真峰、侧链闪避、陷波 |
+| `06-验收与格子法.md` | 三层格子、指纹、verify 十二条、qc 工具 |
+| `07-坑册.md` | 出了怪事、或者想知道某条规矩为什么是这样 |
+| `08-改稿与插入式新增.md` | 用户提了修改意见、要补一段内容 |
+
+## 文案怎么想（这条线只管怎么做）
+
+结构和措辞的判据在另外一组 skill 里（**不在本仓库**，装了就按环节单独触发，没装不影响管线运行）：
+
+- 开写前：`concept-load-triage`（这题属哪型）→ `pov-it-and-you`（转述型科普的人称）
+- 搭结构：`principle-opening-six-beat`（开场六拍）· `material-flow-sequencing`（正文沿什么顺序走）· `mid-hook-and-suspense-ledger`（悬念记账）· `list-recap-elevation-ending`（结尾四件套）
+- 写正文：`part-question-chain`（部件段五拍）· `one-object-one-analogy`（一物一喻）· `name-after-show`（先演后命名）· `design-tradeoff-storytelling`（把参数讲成决策）· `counterintuitive-opener-and-number-converter`（反常识句 / 大数字换算）
+- 自检：`speech-cadence-baseline`（语速、气口、超长句）
+- 画面纪律：`beat-driven-explainer`（本 skill 第 ③④ 条纪律的出处）
